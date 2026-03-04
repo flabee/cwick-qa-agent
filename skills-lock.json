@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "scoutqa-test": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "67633b5abb6e9f6b1ee4e7ef347300df0f931cf07d5cabc347b523570f36e7ef"
+    }
+  }
+}

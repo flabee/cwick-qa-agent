@@ -1,0 +1,6 @@
+token.pickle
+google_credentials.json
+session_output/
+__pycache__/
+.DS_Store
+.env
