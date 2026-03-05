@@ -1,0 +1,68 @@
+# A33 (Cwick Core) — YAML test cases
+# Base path: /dashboard (no tenant prefix — all sections same URL)
+# Login: demo5@test.it
+# Italian UI: Panoramica, Conversazioni, Conoscenza, Terze Parti, Email,
+#              Ricerca Semantica, Impostazioni, RAG Benchmark
+# Logout button: "Esci" (top-right header)
+
+tests:
+
+  - name: "dashboard overview loads"
+    start_url: "https://knowledgebase-frontend-p55f.onrender.com/dashboard"
+    steps:
+      - wait: 3
+      - expect_not_text: "Invalid Date"
+      - expect_not_text: "[object Object]"
+      - expect_not_text: "undefined"
+      # Welcome banner and stats cards must be visible
+      - expect_visible: ":has-text('Bentornato')"
+      - screenshot: "dashboard_overview"
+
+  - name: "dashboard stats cards load"
+    start_url: "https://knowledgebase-frontend-p55f.onrender.com/dashboard"
+    steps:
+      - wait: 3
+      # Four stats cards: Conversazioni Totali, Messaggi Totali, File Caricati, Email Importate
+      - expect_count: [":is([class*='card'],[class*='stat'],[class*='metric']):visible", 1]
+      - expect_not_text: "Invalid Date"
+      - screenshot: "dashboard_stats"
+
+  - name: "all nav tabs are present"
+    start_url: "https://knowledgebase-frontend-p55f.onrender.com/dashboard"
+    steps:
+      - wait: 3
+      - expect_visible: ":is(button,[role='tab']):has-text('Panoramica')"
+      - expect_visible: ":is(button,[role='tab']):has-text('Conversazioni')"
+      - expect_visible: ":is(button,[role='tab']):has-text('Conoscenza')"
+      - expect_visible: ":is(button,[role='tab']):has-text('Email')"
+      - screenshot: "nav_tabs"
+
+  - name: "conversations tab loads"
+    start_url: "https://knowledgebase-frontend-p55f.onrender.com/dashboard"
+    steps:
+      - wait: 2
+      - click: ":is(button,[role='tab']):has-text('Conversazioni')"
+      - wait: 3
+      - expect_not_text: "Invalid Date"
+      - expect_not_text: "undefined"
+      - screenshot: "conversations_tab"
+
+  - name: "knowledge tab loads"
+    start_url: "https://knowledgebase-frontend-p55f.onrender.com/dashboard"
+    steps:
+      - wait: 2
+      - click: ":is(button,[role='tab']):has-text('Conoscenza')"
+      - wait: 3
+      - expect_not_text: "Invalid Date"
+      - expect_not_text: "undefined"
+      - screenshot: "knowledge_tab"
+
+  - name: "semantic search tab loads"
+    start_url: "https://knowledgebase-frontend-p55f.onrender.com/dashboard"
+    steps:
+      - wait: 2
+      - click: ":is(button,[role='tab']):has-text('Ricerca Semantica')"
+      - wait: 3
+      - expect_not_text: "Invalid Date"
+      - expect_not_text: "undefined"
+      - screenshot: "semantic_search_tab"
