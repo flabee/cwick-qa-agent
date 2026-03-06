@@ -28,6 +28,7 @@ import collections
 import datetime
 import hashlib
 import json
+import logging
 import os
 import pickle
 import re
@@ -36,6 +37,13 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from playwright.sync_api import sync_playwright
+
+logging.basicConfig(
+    format="[%(asctime)s] %(message)s",
+    datefmt="%H:%M:%S",
+    level=getattr(logging, os.getenv("QA_LOG_LEVEL", "INFO").upper()),
+)
+logger = logging.getLogger("qa_agent")
 
 try:
     import yaml as _yaml
@@ -65,11 +73,6 @@ SHEET_MAP = {
     "A33":                    "A33",
     "Tenant Base (Cwick Core)": "Tenant Base (Cwick Core)",
 }
-
-# BFS limits — prevent runaway exploration on large apps
-MAX_BFS_STATES   = 60
-MAX_NAV_ITEMS    = 16
-MAX_BTN_PER_PAGE = 15
 
 # Button priority keyword sets — used to sort buttons before clicking
 _BTN_HIGH_KW = {"create", "generate", "export", "upload", "submit", "save",
@@ -111,6 +114,43 @@ _EMPTY_STATE_RE = re.compile(
 # Pattern like "pagination.next_page" — second part must contain an underscore
 # to distinguish real i18n keys from email domains (demo1@test.it) and URLs
 _I18N_RE = re.compile(r'\b([a-z]{3,})\.([a-z]+(?:_[a-z]+)+)\b')
+
+# ── Config ────────────────────────────────────────────────────────────────────
+
+class Config:
+    """Central configuration — all magic numbers in one place.
+
+    BFS limits and log level can be overridden at runtime via env vars
+    (e.g. QA_MAX_BFS_STATES=3 python3 qa_agent.py).
+    """
+
+    # BFS limits
+    MAX_BFS_STATES   = int(os.getenv("QA_MAX_BFS_STATES",   "60"))
+    MAX_NAV_ITEMS    = int(os.getenv("QA_MAX_NAV_ITEMS",    "16"))
+    MAX_BTN_PER_PAGE = int(os.getenv("QA_MAX_BTN_PER_PAGE", "15"))
+
+    # Playwright timeouts (milliseconds)
+    TIMEOUT_LOAD        = 15000
+    TIMEOUT_NETWORKIDLE = 10000
+    TIMEOUT_INTERACTIVE = 5000
+    TIMEOUT_MODAL       = 400
+
+    # Sleep durations (seconds)
+    SLEEP_LOGIN      = 3
+    SLEEP_CLICK      = 2
+    SLEEP_NAV        = 1.5
+    SLEEP_MODAL      = 0.8
+    SLEEP_CHAT       = 15
+
+    # Test data
+    TEST_EMAIL       = "demo@test.com"
+    TEST_TEXT        = "QA Test Input"
+    TEST_DOC_NAME    = "QA Test Document"
+    TEST_CHAT_MSG    = "Hello, can you give me a brief summary of your capabilities?"
+    TEST_SEARCH_TERM = "zzznoresultsxxx"
+    WRONG_EMAIL      = "wrong@test.it"
+    WRONG_PASSWORD   = "wrongpassword"
+
 
 # ── State Graph ───────────────────────────────────────────────────────────────
 
@@ -194,22 +234,22 @@ class CoverageTracker:
         self.states_visited:       int = 0
 
     def print_report(self, bug_count: int = 0):
-        print()
-        print("=" * 50)
-        print("QA Coverage Report")
-        print("=" * 50)
-        print(f"Pages discovered:    {len(self.pages_discovered)}")
-        print(f"Pages tested:        {len(self.pages_tested)}")
-        print(f"Nav links found:     {self.nav_links_discovered}")
-        print(f"Buttons discovered:  {self.buttons_discovered}")
-        print(f"Buttons clicked:     {self.buttons_clicked}")
-        print(f"Modals handled:      {self.modals_opened}")
-        print(f"Forms tested:        {self.forms_filled}")
-        print(f"Flows explored:      {self.flows_explored}")
-        print(f"Unique states:       {self.states_visited}")
-        print(f"Bugs detected:       {bug_count}")
-        print("=" * 50)
-        print()
+        logger.info("")
+        logger.info("=" * 50)
+        logger.info("QA Coverage Report")
+        logger.info("=" * 50)
+        logger.info(f"Pages discovered:    {len(self.pages_discovered)}")
+        logger.info(f"Pages tested:        {len(self.pages_tested)}")
+        logger.info(f"Nav links found:     {self.nav_links_discovered}")
+        logger.info(f"Buttons discovered:  {self.buttons_discovered}")
+        logger.info(f"Buttons clicked:     {self.buttons_clicked}")
+        logger.info(f"Modals handled:      {self.modals_opened}")
+        logger.info(f"Forms tested:        {self.forms_filled}")
+        logger.info(f"Flows explored:      {self.flows_explored}")
+        logger.info(f"Unique states:       {self.states_visited}")
+        logger.info(f"Bugs detected:       {bug_count}")
+        logger.info("=" * 50)
+        logger.info("")
 
     def save_json(self, path: Path, bug_count: int = 0):
         """Write coverage summary to session_output/coverage_summary.json."""
@@ -320,7 +360,7 @@ class ModalHandler:
                         if any(k in aria + name for k in ("delete", "remove", "destroy")):
                             continue
                         t = inp.get_attribute("type") or "text"
-                        inp.fill("demo@test.com" if t == "email" else "QA Test Input")
+                        inp.fill(Config.TEST_EMAIL if t == "email" else Config.TEST_TEXT)
                     except Exception:
                         pass
                 break
@@ -362,7 +402,7 @@ class FormHandler:
     Never fills fields whose label contains: delete / remove / destroy.
     """
 
-    _DEFAULTS = {"text": "QA Test Input", "email": "demo@test.com",
+    _DEFAULTS = {"text": Config.TEST_TEXT, "email": Config.TEST_EMAIL,
                  "number": "1", "search": "QA search"}
     _SKIP_KW  = {"delete", "remove", "destroy"}
 
@@ -392,7 +432,7 @@ class FormHandler:
             for inp in form.locator("input:not([type])").all():
                 try:
                     if inp.is_visible(timeout=300):
-                        inp.fill("QA Test Input")
+                        inp.fill(Config.TEST_TEXT)
                         filled = True
                 except Exception:
                     pass
@@ -401,7 +441,7 @@ class FormHandler:
             for ta in form.locator("textarea").all():
                 try:
                     if ta.is_visible(timeout=300):
-                        ta.fill("Automated QA input")
+                        ta.fill(Config.TEST_TEXT)
                         filled = True
                 except Exception:
                     pass
@@ -471,7 +511,7 @@ class QAAgent:
     # ── Logging ───────────────────────────────────────────────────────────────
 
     def log(self, msg: str):
-        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {msg}", flush=True)
+        logger.info(msg)
 
     # ── Google Auth ───────────────────────────────────────────────────────────
 
@@ -832,7 +872,7 @@ class QAAgent:
 
         # Discover nav items (skip auth-destroying ones)
         all_nav = self._discover_nav_items(page)
-        nav_items = [n for n in all_nav[:MAX_NAV_ITEMS]
+        nav_items = [n for n in all_nav[:Config.MAX_NAV_ITEMS]
                      if not any(s in n.lower() for s in SKIP_KW)]
         self.coverage.nav_links_discovered = len(all_nav)
         self.log(f"Nav items: {nav_items}")
@@ -840,7 +880,7 @@ class QAAgent:
         # Visit every top-level nav section
         section_urls: dict = {}
         for name in nav_items:
-            if self.coverage.states_visited >= MAX_BFS_STATES:
+            if self.coverage.states_visited >= Config.MAX_BFS_STATES:
                 break
             if self._click_nav(page, name):
                 url = page.url
@@ -864,8 +904,8 @@ class QAAgent:
 
         # Deep-dive each section
         for section_name, section_url in section_urls.items():
-            if self.coverage.states_visited >= MAX_BFS_STATES:
-                self.log(f"BFS limit ({MAX_BFS_STATES} states) reached — stopping.")
+            if self.coverage.states_visited >= Config.MAX_BFS_STATES:
+                self.log(f"BFS limit ({Config.MAX_BFS_STATES} states) reached — stopping.")
                 break
             self._explore_section(page, section_name, section_url)
 
@@ -889,7 +929,7 @@ class QAAgent:
                 "[class*='tab']:not([class*='table']):not([class*='tabindex']):visible"
             ).all()[:6]
             for tab in tabs:
-                if self.coverage.states_visited >= MAX_BFS_STATES:
+                if self.coverage.states_visited >= Config.MAX_BFS_STATES:
                     break
                 try:
                     tab_text = tab.inner_text().strip()[:30]
@@ -916,7 +956,7 @@ class QAAgent:
                 "[class*='admin'] :is(a,button):visible"
             ).all()[:6]
             for link in sub_links:
-                if self.coverage.states_visited >= MAX_BFS_STATES:
+                if self.coverage.states_visited >= Config.MAX_BFS_STATES:
                     break
                 try:
                     text = link.inner_text().strip()[:30]
@@ -965,7 +1005,7 @@ class QAAgent:
                         # Check sub-tabs inside detail view
                         detail_tabs = page.locator("[role='tab']:visible").all()[:4]
                         for dt in detail_tabs:
-                            if self.coverage.states_visited >= MAX_BFS_STATES:
+                            if self.coverage.states_visited >= Config.MAX_BFS_STATES:
                                 break
                             try:
                                 dt_text = dt.inner_text().strip()[:20]
@@ -1026,8 +1066,8 @@ class QAAgent:
 
             self.log(f"  [{section_name}] {len(candidates)} clickable element(s) found")
 
-            for btn_text, btn in candidates[:MAX_BTN_PER_PAGE]:
-                if self.coverage.states_visited >= MAX_BFS_STATES:
+            for btn_text, btn in candidates[:Config.MAX_BTN_PER_PAGE]:
+                if self.coverage.states_visited >= Config.MAX_BFS_STATES:
                     break
                 try:
                     # Build an actionable label: prefer text, fall back to aria-label / class
@@ -1133,8 +1173,8 @@ class QAAgent:
             anon      = browser.new_context()
             anon_page = anon.new_page()
             anon_page.goto(TENANT_URL)
-            anon_page.locator("input[type='email']").fill("wrong@test.it")
-            anon_page.locator("input[type='password']").fill("wrongpassword")
+            anon_page.locator("input[type='email']").fill(Config.WRONG_EMAIL)
+            anon_page.locator("input[type='password']").fill(Config.WRONG_PASSWORD)
             _anon_btn = anon_page.locator(
                 ":is(button,[role='button'],[type='submit']):is("
                 ":has-text('Sign in'),:has-text('Login'),:has-text('Log in'),"
@@ -1280,7 +1320,7 @@ class QAAgent:
                         "P1", "Chat section has no message input — core functionality broken",
                     )
                 else:
-                    chat_input.first.fill("Hello, can you give me a brief summary of your capabilities?")
+                    chat_input.first.fill(Config.TEST_CHAT_MSG)
                     send_btn = page.locator(
                         ":is(button,[role='button']):has-text('Send'),"
                         ":is(button,[role='button']):has-text('Submit'),"
@@ -1290,8 +1330,8 @@ class QAAgent:
                         send_btn.first.click()
                     else:
                         chat_input.first.press("Enter")
-                    # Wait up to 15s for streaming to start or finish
-                    time.sleep(15)
+                    # Wait up to SLEEP_CHAT seconds for streaming to start or finish
+                    time.sleep(Config.SLEEP_CHAT)
                     response_visible = page.locator(
                         "[class*='message']:not([class*='user']), [class*='response'],"
                         "[class*='assistant'], [class*='bot'], [class*='ai-message'],"
@@ -1323,7 +1363,7 @@ class QAAgent:
                 "input[type='search'], input[placeholder*='Search' i], input[placeholder*='search' i]"
             )
             if search.count() > 0:
-                search.first.fill("zzznoresultsxxx")
+                search.first.fill(Config.TEST_SEARCH_TERM)
                 time.sleep(2)
                 body_text = page.locator("body").inner_text()
                 if "No generated documents" in body_text:
@@ -1469,7 +1509,7 @@ class QAAgent:
             "input[placeholder*='document' i], input[type='text']:visible"
         )
         if name_input.count() > 0:
-            name_input.first.fill("QA Test Document")
+            name_input.first.fill(Config.TEST_DOC_NAME)
 
         # Fill prompt/topic textarea
         prompt_input = page.locator(
@@ -2035,9 +2075,9 @@ class QAAgent:
             ("TENANT_PASSWORD", PASSWORD),
         ] if not val]
         if missing:
-            print(f"ERROR: Missing required env vars: {', '.join(missing)}")
-            print("Set them before running, e.g.:")
-            print("  export TENANT_URL=https://...")
+            logger.error(f"Missing required env vars: {', '.join(missing)}")
+            logger.error("Set them before running, e.g.:")
+            logger.error("  export TENANT_URL=https://...")
             return
 
         # Derive tenant domain for navigation safety
@@ -2072,11 +2112,11 @@ class QAAgent:
                 # Fallback: click any submit button on the page
                 page.locator("button[type='submit'], input[type='submit']").first.click()
             try:
-                page.wait_for_url(lambda u: "login" not in u, timeout=15000)
+                page.wait_for_url(lambda u: "login" not in u, timeout=Config.TIMEOUT_LOAD)
             except Exception:
                 self.log("WARNING: URL still contains 'login' after submit — login may have failed")
-            page.wait_for_load_state("networkidle", timeout=15000)
-            time.sleep(3)
+            page.wait_for_load_state("networkidle", timeout=Config.TIMEOUT_LOAD)
+            time.sleep(Config.SLEEP_LOGIN)
             self.protected_url = page.url
             self.home_url      = page.url
             self.log(f"Logged in at: {self.home_url}")
