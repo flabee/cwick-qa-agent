@@ -24,6 +24,7 @@ Env vars:
   EXCEL_FILE_ID    — Google Sheets file ID (optional)
 """
 
+import argparse
 import collections
 import datetime
 import hashlib
@@ -60,8 +61,9 @@ TENANT_NAME     = os.environ.get("TENANT_NAME", "Unknown")
 DRIVE_FOLDER_ID = os.environ.get("DRIVE_FOLDER_ID", "")
 EXCEL_FILE_ID   = os.environ.get("EXCEL_FILE_ID", "")
 
-SESSION_DIR = Path(os.path.expanduser("~/cwick-qa-agent/session_output"))
+SESSION_DIR     = Path(os.path.expanduser("~/cwick-qa-agent/session_output"))
 SESSION_DIR.mkdir(parents=True, exist_ok=True)
+CHECKPOINT_PATH = SESSION_DIR / "bfs_checkpoint.pkl"
 
 APPS_DIR = Path(__file__).parent / "apps"
 
@@ -923,7 +925,11 @@ class QAAgent:
                 self.log(f"BFS limit ({Config.MAX_BFS_STATES} states) reached — stopping.")
                 break
             self._explore_section(page, section_name, section_url)
+            # Checkpoint every 10 states
+            if self.coverage.states_visited % 10 == 0:
+                self.state_graph.save(CHECKPOINT_PATH)
 
+        self.state_graph.save(CHECKPOINT_PATH)
         self.log(
             f"BFS complete — {self.coverage.states_visited} states, "
             f"{len(self.coverage.pages_discovered)} pages discovered"
@@ -2138,7 +2144,22 @@ class QAAgent:
           5. YAML tests
           6. Coverage report
           7. Write bugs to Sheets / local log
+
+        CLI flags:
+          --headless   Run browser without visible window
+          --resume     Resume from saved BFS checkpoint (skips already-visited states)
         """
+        parser = argparse.ArgumentParser(description="QA agent for cwick demo hub")
+        parser.add_argument(
+            "--headless", action="store_true",
+            help="Run browser in headless mode (no visible window)",
+        )
+        parser.add_argument(
+            "--resume", action="store_true",
+            help="Resume from saved BFS checkpoint at session_output/bfs_checkpoint.pkl",
+        )
+        args = parser.parse_args()
+
         # Validate required environment variables
         missing = [name for name, val in [
             ("TENANT_URL",      TENANT_URL),
@@ -2155,7 +2176,7 @@ class QAAgent:
         self.tenant_domain = urlparse(TENANT_URL).netloc
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False)
+            browser = p.chromium.launch(headless=args.headless)
             page    = browser.new_page()
 
             # Capture JS console errors
@@ -2173,6 +2194,8 @@ class QAAgent:
             self.log(f"Logged in at: {self.home_url}")
 
             # ── PHASE 2: BFS EXPLORATION ──────────────────────────────────────
+            if args.resume and self.state_graph.load(CHECKPOINT_PATH):
+                self.log(f"Resumed from checkpoint ({len(self.state_graph.visited)} visited states)")
             self.bfs_explore(page, self.home_url)
 
             # Return to home before targeted checks
