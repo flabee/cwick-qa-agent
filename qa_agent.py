@@ -643,6 +643,46 @@ class QAAgent:
                 pass
         return False
 
+    # Selector covers English and Italian login/submit buttons
+    _LOGIN_BTN_SEL = (
+        ":is(button,[role='button'],[type='submit']):is("
+        ":has-text('Sign in'),:has-text('Login'),:has-text('Log in'),"
+        ":has-text('Accedi'),:has-text('Entra'),:has-text('Inizia'),"
+        ":has-text('Invia'),:has-text('Continua'))"
+    )
+
+    def _login(self, page, conditional: bool = False):
+        """
+        Perform (or conditionally perform) login.
+
+        conditional=False: always fill credentials and click — used at session start.
+        conditional=True:  only re-login if the current URL contains 'login' and
+                           the email input is visible — used before YAML tests.
+        """
+        if conditional:
+            page.goto(TENANT_URL)
+            page.wait_for_load_state("networkidle", timeout=Config.TIMEOUT_NETWORKIDLE)
+            time.sleep(2)
+            if not ("login" in page.url
+                    and page.locator("input[type='email']").count() > 0):
+                self.log("  Already authenticated — skipping re-login")
+                return
+
+        page.goto(TENANT_URL)
+        page.locator("input[type='email']").fill(USERNAME)
+        page.locator("input[type='password']").fill(PASSWORD)
+        btn = page.locator(self._LOGIN_BTN_SEL)
+        if btn.count() > 0:
+            btn.first.click()
+        else:
+            page.locator("button[type='submit'], input[type='submit']").first.click()
+        try:
+            page.wait_for_url(lambda u: "login" not in u, timeout=Config.TIMEOUT_LOAD)
+        except Exception:
+            self.log("WARNING: URL still contains 'login' after submit — login may have failed")
+        page.wait_for_load_state("networkidle", timeout=Config.TIMEOUT_LOAD)
+        time.sleep(Config.SLEEP_LOGIN)
+
     def _discover_nav_items(self, page) -> list:
         """Return list of visible nav item labels (deduplicated)."""
         found = {}
@@ -1150,12 +1190,7 @@ class QAAgent:
             anon_page.goto(TENANT_URL)
             anon_page.locator("input[type='email']").fill(Config.WRONG_EMAIL)
             anon_page.locator("input[type='password']").fill(Config.WRONG_PASSWORD)
-            _anon_btn = anon_page.locator(
-                ":is(button,[role='button'],[type='submit']):is("
-                ":has-text('Sign in'),:has-text('Login'),:has-text('Log in'),"
-                ":has-text('Accedi'),:has-text('Entra'),:has-text('Inizia'),"
-                ":has-text('Invia'),:has-text('Continua'))"
-            )
+            _anon_btn = anon_page.locator(self._LOGIN_BTN_SEL)
             if _anon_btn.count() > 0:
                 _anon_btn.first.click()
             else:
@@ -2071,27 +2106,7 @@ class QAAgent:
             # ── PHASE 1: LOGIN ────────────────────────────────────────────────
             self.log(f"Starting QA session for '{TENANT_NAME}'")
             self.log(f"Login URL: {TENANT_URL}")
-            page.goto(TENANT_URL)
-            page.locator("input[type='email']").fill(USERNAME)
-            page.locator("input[type='password']").fill(PASSWORD)
-            # Try broad button match — covers English and Italian login buttons
-            login_btn = page.locator(
-                ":is(button,[role='button'],[type='submit']):is("
-                ":has-text('Sign in'),:has-text('Login'),:has-text('Log in'),"
-                ":has-text('Accedi'),:has-text('Entra'),:has-text('Inizia'),"
-                ":has-text('Invia'),:has-text('Continua'))"
-            )
-            if login_btn.count() > 0:
-                login_btn.first.click()
-            else:
-                # Fallback: click any submit button on the page
-                page.locator("button[type='submit'], input[type='submit']").first.click()
-            try:
-                page.wait_for_url(lambda u: "login" not in u, timeout=Config.TIMEOUT_LOAD)
-            except Exception:
-                self.log("WARNING: URL still contains 'login' after submit — login may have failed")
-            page.wait_for_load_state("networkidle", timeout=Config.TIMEOUT_LOAD)
-            time.sleep(Config.SLEEP_LOGIN)
+            self._login(page)
             self.protected_url = page.url
             self.home_url      = page.url
             self.log(f"Logged in at: {self.home_url}")
@@ -2108,30 +2123,7 @@ class QAAgent:
 
             # ── PHASE 4: YAML TESTS (needs active session — re-login if needed) ─
             self.log("Re-logging in before YAML tests…")
-            page.goto(TENANT_URL)
-            page.wait_for_load_state("networkidle", timeout=10000)
-            time.sleep(2)
-            if "login" in page.url and page.locator("input[type='email']").count() > 0:
-                page.locator("input[type='email']").fill(USERNAME)
-                page.locator("input[type='password']").fill(PASSWORD)
-                login_btn2 = page.locator(
-                    ":is(button,[role='button'],[type='submit']):is("
-                    ":has-text('Sign in'),:has-text('Login'),:has-text('Log in'),"
-                    ":has-text('Accedi'),:has-text('Entra'),:has-text('Inizia'),"
-                    ":has-text('Invia'),:has-text('Continua'))"
-                )
-                if login_btn2.count() > 0:
-                    login_btn2.first.click()
-                else:
-                    page.locator("button[type='submit'], input[type='submit']").first.click()
-                try:
-                    page.wait_for_url(lambda u: "login" not in u, timeout=15000)
-                except Exception:
-                    pass
-                page.wait_for_load_state("networkidle", timeout=10000)
-                time.sleep(2)
-            else:
-                self.log("  Already authenticated — skipping re-login")
+            self._login(page, conditional=True)
             self.run_yaml_tests(page)
 
             # ── PHASE 4b: CHECK 6 — Logout + auth guard (ends session) ───────
