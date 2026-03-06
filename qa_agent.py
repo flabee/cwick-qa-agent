@@ -663,31 +663,6 @@ class QAAgent:
                     pass
         return list(found.keys())
 
-    def _close_modal(self, page):
-        """Attempt to close any open modal or dialog."""
-        for sel in [
-            "[role='dialog'] button:has-text('Close')",
-            "[role='dialog'] button:has-text('Cancel')",
-            "[role='dialog'] [aria-label*='close' i]",
-            "[class*='modal'] button:has-text('Close')",
-            "[class*='modal'] button:has-text('Cancel')",
-            "[class*='modal'] [aria-label*='close' i]",
-            "[class*='overlay'] button",
-        ]:
-            try:
-                el = page.locator(sel).first
-                if el.is_visible(timeout=500):
-                    el.click()
-                    time.sleep(0.8)
-                    return
-            except Exception:
-                pass
-        try:
-            page.keyboard.press("Escape")
-            time.sleep(0.8)
-        except Exception:
-            pass
-
     def _goto(self, page, url: str) -> bool:
         """Navigate to URL, enforcing same-domain constraint. Returns True on success."""
         # Domain safety: only navigate within the tenant's domain
