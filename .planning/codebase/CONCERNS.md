@@ -111,7 +111,7 @@
 - **Example:** CFO AI chat widget errors might not be captured if they occur without a URL change.
 
 ### 8. Google Drive Upload Returns 404 for Some Users
-- **Issue:** Memory notes document that Drive folder 1v6aVtuSREguMsIzkmacEvWj_iXPSfy7P returns 404 for the oauth user.
+- **Issue:** The configured Drive folder returns 404 for the oauth user.
 - **Location:** Lines 1785-1810 (Drive upload code)
 - **Workaround:** Screenshots written to local disk; hyperlinks set via Sheets API batchUpdate.
 - **Risk:** Some Drive uploads fail silently. Screenshots may not be accessible to all users.

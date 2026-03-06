@@ -33,7 +33,7 @@ export TENANT_URL="https://your-tenant.demo.cwick.io"
 export TENANT_USERNAME="tester@yourcompany.com"
 export TENANT_PASSWORD="yourpassword"
 export TENANT_NAME="MaiHUB"                          # Must match Excel sheet name exactly
-export DRIVE_FOLDER_ID="1v6aVtuSREguMsIzkmacEvWj_iXPSfy7P"   # Screenshots subfolder for this tenant
+export DRIVE_FOLDER_ID="<your-drive-folder-id>"              # Screenshots subfolder for this tenant
 export EXCEL_FILE_ID="<get from Drive URL of Cwick_Demo_Test.xlsx>"
 ```
 

@@ -25,7 +25,7 @@
   - `spreadsheets().get()` — list all sheets in spreadsheet
 - **Endpoints:**
   - Base: `https://sheets.googleapis.com/v4`
-  - Spreadsheet ID: `18uQBNPKGbhZXlmFlFz_cqnNxdT2vj0PCnqJ4wM_FEFc` (Cwick_Demo_Test.xlsx)
+  - Spreadsheet ID: set via `EXCEL_FILE_ID` env var (see `.env.example`)
   - Sheets: 6 named sheets (Docupilot, MaiHUB, CFO AI, Rooms, A33, Tenant Base (Cwick Core))
 - **Data Flow:** Bug metadata (issue title, repro steps, priority, screenshot link) → range update → Sheet cells A7:H
 
@@ -73,8 +73,8 @@
 - **Provider:** Google Cloud Console (oauth.google.com)
 - **Flow:** Installed/Desktop OAuth (Redirect URI: http://localhost)
 - **Credentials:**
-  - Client ID: `138176540531-04k2d3b9gi9q3ouc4d34cadgu0h5egf8.apps.googleusercontent.com`
-  - Client Secret: Stored in `google_credentials.json` (encrypted on disk expected)
+  - Client ID: stored in `google_credentials.json` (not committed)
+  - Client Secret: stored in `google_credentials.json` (not committed)
   - Project: `cwick-qa-agent`
 - **Scopes Requested:**
   - `https://www.googleapis.com/auth/drive` — full Drive access
@@ -85,13 +85,8 @@
 
 ### Demo Tenant Auth (Application Layer)
 - **Type:** Web form-based login (not an API integration; tested UI behavior)
-- **Test Accounts:**
-  - Docupilot: `demo1@test.it` / `claude`
-  - CFO AI: `demo2@test.it` / `claude`
-  - MaiHUB: `demo3@test.it` / `claude`
-  - Rooms: `demo4@test.it` / `claude`
-  - A33: `demo5@test.it` / `claude`
-  - Tenant Base (Cwick Core): `demo6@test.it` / `claude`
+- **Test Accounts:** Set via `TENANT_USERNAME` / `TENANT_PASSWORD` env vars (see `.env.example`)
+  - Tenant routing handled by `run.sh` which sources credentials from `.env`
 - **Auth Endpoint:** Varies per tenant (e.g., /docupilot/login, /cfo/login, /maihub/login)
 - **Testing Coverage:** Wrong credentials (P0 bug), session persistence, logout guard
 
