@@ -1011,7 +1011,7 @@ class QAAgent:
             "ul:not([class*='nav']) li:first-child a",
         ]
         for sel in detail_selectors:
-            if self.coverage.states_visited >= MAX_BFS_STATES:
+            if self.coverage.states_visited >= Config.MAX_BFS_STATES:
                 break
             try:
                 el = page.locator(sel).first
