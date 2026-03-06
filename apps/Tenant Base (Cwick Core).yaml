@@ -1,0 +1,261 @@
+base_url: https://knowledgebase-frontend-p55f.onrender.com
+
+tests:
+
+  # ── OVERVIEW ──────────────────────────────────────────────────────────────
+  - name: "overview dashboard loads with all 4 stat cards"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - expect_visible: "text=Total Conversations"
+      - expect_visible: "text=Total Messages"
+      - expect_visible: "text=Uploaded Files"
+      - expect_visible: "text=Emails Imported"
+      - screenshot: "overview_stats"
+
+  - name: "chat widget URL is present and copyable"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - expect_visible: "text=Your Chat Widget URL"
+      - expect_visible: "input[readonly][value*='/chat/'], input[value*='/chat/']"
+      - expect_visible: "button:has-text('Copy')"
+      - screenshot: "chat_widget_url"
+
+  - name: "overview shows recent conversations panel"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - expect_visible: "text=Recent Conversations"
+      - expect_visible: "text=Knowledge Base Summary"
+      - screenshot: "overview_panels"
+
+  # ── CONVERSATIONS ─────────────────────────────────────────────────────────
+  - name: "conversations tab loads with stats and list"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Conversations"
+      - wait: 2
+      - expect_visible: "text=Total"
+      - expect_visible: "text=Active"
+      - expect_visible: "text=Closed"
+      - screenshot: "conversations_list"
+
+  - name: "conversations status filters work"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Conversations"
+      - wait: 2
+      - expect_visible: "text=All"
+      - click: "button:has-text('Active'), :is([role='tab'],[class*='tab']):has-text('Active')"
+      - wait: 1
+      - screenshot: "conversations_filter_active"
+      - click: "button:has-text('Closed'), :is([role='tab'],[class*='tab']):has-text('Closed')"
+      - wait: 1
+      - screenshot: "conversations_filter_closed"
+
+  - name: "open first conversation and view messages"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Conversations"
+      - wait: 2
+      - click: "[class*='conversation']:first-child, tbody tr:first-child, [class*='list'] [class*='item']:first-child"
+      - wait: 2
+      - screenshot: "conversation_detail"
+      - expect_not_text: "500 Internal Server"
+
+  # ── KNOWLEDGE ─────────────────────────────────────────────────────────────
+  - name: "knowledge tab shows upload area"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Knowledge"
+      - wait: 2
+      - expect_visible: "text=Upload"
+      - screenshot: "knowledge_upload"
+
+  - name: "knowledge upload accepts PDF/TXT/Markdown/CSV"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Knowledge"
+      - wait: 2
+      - expect_visible: "text=PDF"
+      - expect_visible: "text=TXT"
+      - expect_not_text: "500 Internal Server"
+      - screenshot: "knowledge_upload_formats"
+
+  - name: "knowledge manual entry tab exists"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Knowledge"
+      - wait: 2
+      - click: ":is([role='tab'],button):has-text('Manual'), :is([role='tab'],button):has-text('Entry')"
+      - wait: 2
+      - screenshot: "knowledge_manual_entry"
+
+  # ── THIRD PARTIES ─────────────────────────────────────────────────────────
+  - name: "third parties tab shows Notion integration"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Third Parties"
+      - wait: 2
+      - expect_visible: "text=Notion"
+      - screenshot: "third_parties_notion"
+
+  - name: "notion integration has connect button"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Third Parties"
+      - wait: 2
+      - expect_visible: "text=Notion"
+      - expect_visible: ":is(button,a):has-text('Connect'), :is(button,a):has-text('Sync'), :is(button,a):has-text('Setup')"
+      - screenshot: "notion_connect"
+
+  # ── EMAIL ─────────────────────────────────────────────────────────────────
+  - name: "email tab shows connect account UI"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Email"
+      - wait: 2
+      - expect_visible: "text=Connect"
+      - expect_visible: "text=Email"
+      - screenshot: "email_connect"
+      - expect_not_text: "500 Internal Server"
+
+  - name: "email tab has connect button or OAuth link"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Email"
+      - wait: 2
+      - expect_visible: ":is(button,a):has-text('Connect'), :is(button,a):has-text('Gmail'), :is(button,a):has-text('Outlook')"
+      - screenshot: "email_oauth_options"
+
+  # ── SEMANTIC SEARCH ───────────────────────────────────────────────────────
+  - name: "semantic search tab loads with search input"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Semantic Search"
+      - wait: 2
+      - expect_visible: "text=Search"
+      - expect_visible: "input[type='search'], input[type='text'], input[placeholder*='search' i], input[placeholder*='query' i]"
+      - screenshot: "semantic_search_input"
+
+  - name: "semantic search runs a query and shows results or empty state"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/dashboard
+    steps:
+      - click: "text=Semantic Search"
+      - wait: 2
+      - fill: ["input[type='search'], input[type='text']", "knowledge management"]
+      - press: ["input[type='search'], input[type='text']", "Enter"]
+      - wait: 3
+      - screenshot: "semantic_search_results"
+      - expect_not_text: "500 Internal Server"
+
+  # ── SETTINGS ──────────────────────────────────────────────────────────────
+  - name: "settings page loads LLM configuration form"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/settings
+    steps:
+      - wait: 2
+      - expect_visible: "text=Settings"
+      - screenshot: "settings_overview"
+
+  - name: "settings AI identity fields are editable"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/settings
+    steps:
+      - wait: 2
+      - click: "text=Settings"
+      - wait: 1
+      - expect_visible: "text=Name"
+      - expect_visible: "text=Profession"
+      - expect_visible: ":is(button):has-text('Save'), :is(button):has-text('Update')"
+      - screenshot: "settings_ai_identity"
+
+  - name: "settings save does not produce an error"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/settings
+    steps:
+      - wait: 2
+      - click: "text=Settings"
+      - wait: 1
+      - click: ":is(button):has-text('Save'), :is(button):has-text('Update')"
+      - wait: 2
+      - expect_not_text: "500 Internal Server"
+      - expect_not_text: "TypeError:"
+      - screenshot: "settings_save_result"
+
+  # ── RAG BENCHMARK ─────────────────────────────────────────────────────────
+  - name: "benchmark page loads with datasets tab"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/benchmark
+    steps:
+      - wait: 2
+      - expect_visible: "text=RAG Benchmark"
+      - expect_visible: "text=Datasets"
+      - screenshot: "benchmark_datasets"
+
+  - name: "benchmark new dataset button is clickable"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/benchmark
+    steps:
+      - wait: 2
+      - expect_visible: "button:has-text('New Dataset'), button:has-text('+ New')"
+      - click: "button:has-text('New Dataset'), button:has-text('+ New')"
+      - wait: 2
+      - screenshot: "benchmark_new_dataset"
+      - expect_not_text: "500 Internal Server"
+
+  - name: "benchmark settings tab is accessible"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/benchmark
+    steps:
+      - wait: 2
+      - click: ":is([role='tab'],button):has-text('Settings')"
+      - wait: 2
+      - screenshot: "benchmark_settings_tab"
+
+  - name: "benchmark runs tab loads"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/benchmark
+    steps:
+      - wait: 2
+      - click: ":is([role='tab'],button):has-text('Runs')"
+      - wait: 2
+      - screenshot: "benchmark_runs_tab"
+      - expect_not_text: "500 Internal Server"
+
+  # ── CHAT WIDGET (public-facing) ───────────────────────────────────────────
+  - name: "chat widget loads with name/email form"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/chat/5951cfbb-bf2c-4d21-a66c-5f8d95c34c4a
+    steps:
+      - wait: 3
+      - expect_visible: "text=AI Assistant"
+      - expect_visible: "text=Your Name"
+      - expect_visible: "button:has-text('Start Chat')"
+      - screenshot: "chat_widget_landing"
+
+  - name: "chat widget language toggle works"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/chat/5951cfbb-bf2c-4d21-a66c-5f8d95c34c4a
+    steps:
+      - wait: 3
+      - expect_visible: "text=Italiano"
+      - expect_visible: "text=English"
+      - click: "button:has-text('Italiano'), :has-text('Italiano')"
+      - wait: 1
+      - screenshot: "chat_widget_italian"
+      - click: "button:has-text('English'), :has-text('English')"
+      - wait: 1
+      - screenshot: "chat_widget_english"
+
+  - name: "chat widget start chat flow works"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/chat/5951cfbb-bf2c-4d21-a66c-5f8d95c34c4a
+    steps:
+      - wait: 3
+      - fill: ["input[placeholder='John Doe'], input[placeholder*='Name' i]", "QA Tester"]
+      - click: "button:has-text('Start Chat')"
+      - wait: 3
+      - expect_visible: "textarea, input[type='text'], [contenteditable='true']"
+      - screenshot: "chat_widget_active"
+
+  - name: "chat widget accepts and sends a message"
+    start_url: https://knowledgebase-frontend-p55f.onrender.com/chat/5951cfbb-bf2c-4d21-a66c-5f8d95c34c4a
+    steps:
+      - wait: 3
+      - fill: ["input[placeholder='John Doe'], input[placeholder*='Name' i]", "QA Tester"]
+      - click: "button:has-text('Start Chat')"
+      - wait: 3
+      - fill: ["textarea, input[type='text']", "What can you help me with?"]
+      - press: ["textarea, input[type='text']", "Enter"]
+      - wait: 8
+      - screenshot: "chat_widget_response"
+      - expect_not_text: "500 Internal Server"
