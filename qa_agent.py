@@ -1618,6 +1618,64 @@ class QAAgent:
 
     # ── YAML Test Runner ──────────────────────────────────────────────────────
 
+    _VALID_YAML_ACTIONS = frozenset({
+        "click", "fill", "type", "navigate", "wait", "scroll", "press",
+        "screenshot", "select", "set_input_files",
+        "expect_visible", "expect_url", "expect_text", "expect_not_text",
+        "expect_count",
+    })
+
+    def _validate_yaml_config(self, config) -> list:
+        """
+        Validate a loaded YAML config dict.
+        Returns a list of warning strings (non-fatal — existing tests still run).
+        """
+        warnings = []
+        if not isinstance(config, dict):
+            warnings.append("YAML root must be a mapping (got non-dict)")
+            return warnings
+        tests = config.get("tests")
+        if tests is None:
+            warnings.append("YAML config missing required 'tests' key")
+            return warnings
+        if not isinstance(tests, list):
+            warnings.append(f"YAML 'tests' must be a list (got {type(tests).__name__})")
+            return warnings
+        for i, test in enumerate(tests):
+            if not isinstance(test, dict):
+                warnings.append(f"Test #{i+1}: must be a mapping, got {type(test).__name__}")
+                continue
+            if "name" not in test:
+                warnings.append(f"Test #{i+1}: missing 'name' key")
+            if "steps" not in test:
+                warnings.append(f"Test #{i+1} ({test.get('name','?')}): missing 'steps' key")
+                continue
+            steps = test.get("steps", [])
+            if not isinstance(steps, list):
+                warnings.append(f"Test '{test.get('name','?')}': 'steps' must be a list")
+                continue
+            for j, step in enumerate(steps):
+                if not isinstance(step, dict):
+                    warnings.append(
+                        f"Test '{test.get('name','?')}' step {j+1}: "
+                        f"must be a mapping, got {type(step).__name__}"
+                    )
+                    continue
+                if len(step) != 1:
+                    warnings.append(
+                        f"Test '{test.get('name','?')}' step {j+1}: "
+                        f"each step must have exactly one key, got {list(step.keys())}"
+                    )
+                    continue
+                action = list(step.keys())[0]
+                if action not in self._VALID_YAML_ACTIONS:
+                    warnings.append(
+                        f"Test '{test.get('name','?')}' step {j+1}: "
+                        f"unknown action '{action}' — valid actions: "
+                        f"{sorted(self._VALID_YAML_ACTIONS)}"
+                    )
+        return warnings
+
     def run_yaml_tests(self, page):
         """
         Load and execute YAML test cases for this tenant.
@@ -1667,6 +1725,9 @@ class QAAgent:
         except Exception as e:
             self.log(f"YAML parse error: {e}")
             return
+
+        for warn in self._validate_yaml_config(config):
+            self.log(f"  YAML validation warning: {warn}")
 
         tests = config.get("tests", [])
         self.log(f"Running {len(tests)} YAML test(s)…")
