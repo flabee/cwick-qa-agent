@@ -216,7 +216,8 @@ class StateGraph:
             self.visited = data.get("visited", set())
             self.edges   = data.get("edges", [])
             return True
-        except Exception:
+        except Exception as e:
+            logger.debug(f"load failed: {e}")
             return False
 
 # ── Coverage Tracker ──────────────────────────────────────────────────────────
@@ -336,7 +337,8 @@ class ModalHandler:
         fname = f"{ts}_modal_{re.sub(r'[^a-z0-9]', '_', label.lower()[:30])}.png"
         try:
             page.screenshot(path=str(SESSION_DIR / fname))
-        except Exception:
+        except Exception as e:
+            logger.debug(f"screenshot failed: {e}")
             fname = ""
         return fname
 
@@ -718,7 +720,8 @@ class QAAgent:
             page.wait_for_load_state("networkidle", timeout=10000)
             time.sleep(1.5)
             return True
-        except Exception:
+        except Exception as e:
+            logger.debug(f"_goto({url}) failed: {e}")
             ts    = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
             fname = f"{ts}_nav_fail_{re.sub(r'[^a-z0-9]', '_', url[-30:])}.png"
             try:
